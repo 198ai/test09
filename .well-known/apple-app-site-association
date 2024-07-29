@@ -1,0 +1,17 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [ 
+          "XGZ46ZT986.com.example.projectTest95"
+        ],
+        "components": [
+          {
+            "/": "/*",
+            "comment": "Any comments"
+          }
+        ]
+      }
+    ]
+  }
+}
