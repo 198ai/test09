@@ -1,6 +1,11 @@
 {
   "hosting": {
     "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
     "headers": [
       {
         "source": "/.well-known/apple-app-site-association",
@@ -10,6 +15,12 @@
             "value": "application/json"
           }
         ]
+      }
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
       }
     ]
   }
