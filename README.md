@@ -1,17 +1,21 @@
 class YourVerticalGridFragment : VerticalGridSupportFragment() {
+    private val columns = 5
+    private var lastSelectedRow = -1
+    private var selectedPositionIndex = 0
 
-    private val columns = 5 // 列数
-    private var lastFirstVisible = -1
-    private var lastLastVisible = -1
+    // 添加选中位置监听
+    init {
+        onItemViewSelectedListener = OnItemViewSelectedListener { _, _, _, position ->
+            selectedPositionIndex = position
+        }
+    }
 
-    // 获取绑定的ArrayObjectAdapter
     private val gridAdapter: ArrayObjectAdapter?
         get() = (gridPresenter as? VerticalGridPresenter)?.adapter as? ArrayObjectAdapter
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
-        // 使用 VerticalGridSupportFragment 内置的 verticalGridView，而不是自己 findViewById
+        
         verticalGridView?.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrollStateChanged(rv: RecyclerView, newState: Int) {
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
@@ -23,46 +27,63 @@ class YourVerticalGridFragment : VerticalGridSupportFragment() {
 
     private fun manageCacheRange(recyclerView: RecyclerView) {
         val adapter = gridAdapter ?: return
-        val itemCount = adapter.size() // 必须从 Adapter 获取总数
+        val itemCount = adapter.size()
+        if (itemCount == 0) return
 
-        // 注意：verticalGridView 实际继承的是 BaseGridView
-        val gridView = recyclerView as? BaseGridView ?: return
+        val currentRow = selectedPositionIndex / columns
+        val totalRows = (itemCount + columns - 1) / columns // 计算总行数（向上取整）
 
-        val childCount = gridView.childCount
-        if (childCount == 0) return
+        // 确定滚动方向
+        val direction = when {
+            currentRow > lastSelectedRow -> Direction.DOWN
+            currentRow < lastSelectedRow -> Direction.UP
+            else -> null
+        }
+        lastSelectedRow = currentRow
 
-        // 第一个可见子 View
-        val firstView = gridView.getChildAt(0) ?: return
-        // 最后一个可见子 View
-        val lastView = gridView.getChildAt(childCount - 1) ?: return
+        // 需要清理的位置范围
+        val positionsToClear = mutableListOf<Int>()
 
-        // 通过 getChildAdapterPosition(...) 获取对应的 Adapter 索引
-        val firstVisible = gridView.getChildAdapterPosition(firstView)
-        val lastVisible = gridView.getChildAdapterPosition(lastView)
-
-        // 若计算到无效的 position（比如 -1），直接返回
-        if (firstVisible < 0 || lastVisible < 0) return
-
-        // 防止频繁刷新，只有在滚动超过一定距离后再执行清理
-        if (abs(firstVisible - lastFirstVisible) < columns * 3 &&
-            abs(lastVisible - lastLastVisible) < columns * 3
-        ) return
-
-        // 计算要保留的起始和结束范围
-        val keepStart = (firstVisible - columns * 5).coerceAtLeast(0)
-        val keepEnd = (lastVisible + columns * 5).coerceAtMost(itemCount - 1)
-
-        // 清理屏幕外缓存
-        (0 until itemCount)
-            .filter { it < keepStart || it > keepEnd }
-            .forEach { position ->
-                // 通过ViewHolder清理特定项
-                recyclerView.findViewHolderForAdapterPosition(position)?.let { vh ->
-                    (presenter as? MyImagePresenter)?.onUnbindViewHolder(vh)
+        when (direction) {
+            Direction.DOWN -> {
+                // 如果当前行上方超过 10 行，清理最前面 5 行
+                if (currentRow > 10) {
+                    val clearEndRow = 4 // 清理前 5 行（0-4）
+                    val clearEndPos = min((clearEndRow + 1) * columns, itemCount) - 1
+                    positionsToClear.addAll(0..clearEndPos)
                 }
             }
+            Direction.UP -> {
+                // 如果下方剩余超过 10 行，清理最后 5 行
+                val remainingRows = totalRows - currentRow - 1
+                if (remainingRows > 10) {
+                    val clearStartRow = max(totalRows - 5, 0)
+                    val clearStartPos = clearStartRow * columns
+                    positionsToClear.addAll(clearStartPos until itemCount)
+                }
+            }
+            null -> return
+        }
 
-        lastFirstVisible = firstVisible
-        lastLastVisible = lastVisible
+        // 清理图片并打印日志
+        positionsToClear.forEach { position ->
+            recyclerView.findViewHolderForAdapterPosition(position)?.let { vh ->
+                val cardView = vh as? BasContentImageCardView
+                cardView?.let {
+                    // 获取 URL（需要根据你的数据结构实现）
+                    val url = getUrlFromPosition(position)
+                    println("Cleared image at position: $position, URL: $url")
+                    
+                    Glide.with(it.context).clear(it.imageView)
+                }
+            }
+        }
     }
+
+    // 示例方法：从数据源获取 URL（需要根据实际数据结构调整）
+    private fun getUrlFromPosition(position: Int): String? {
+        return (gridAdapter?.get(position) as? YourDataItem)?.imageUrl
+    }
+
+    enum class Direction { UP, DOWN }
 }
