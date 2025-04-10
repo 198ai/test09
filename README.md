@@ -1,28 +1,36 @@
 @startuml
 class B {
-  - displayType
-  + setDisplayType(displayType)
-  + adjust〇〇Layout(margin)
+
+onCreateView()
 }
+
 class Fragment1 extends B {
-  + onViewCreated()
-  + adjust〇〇Layout(margin)
+
+onCreateView() 【Overwrite】
 }
+
 class Fragment2 extends B {
-  + onViewCreated()
-  + adjust〇〇Layout(margin)
+
+onCreateView() 【Overwrite】
 }
 
-enum DisplayType {
-  Type1
-  Type2
+note right of Fragment2::onCreateView
+ロード　fragment2_new.xml
+end note
+
+note right of Fragment1::onCreateView
+ロード　fragment1_new.xml
+end note
+
+class layout << (S,#FF7700) >> {
+新增7个XML布局
+fragment1_new.xml
+fragment2_new.xml
+...
 }
 
 
-note right of Fragment2::onViewCreated
-  呼び出す setDisplayType(DisplayType.Type2)
-end note
-note right of Fragment1::onViewCreated
-  呼び出す setDisplayType(DisplayType.Type1)
-end note
+
+Fragment1 ..> layout : 使用
+Fragment2 ..> layout : 使用
 @enduml
